@@ -1,0 +1,187 @@
+1)CREATE OR REPLACE TRIGGER prevent_high_price_deletion
+BEFORE DELETE ON BOOK
+FOR EACH ROW
+BEGIN
+IF :OLD.B_PRICE > 4000 THEN
+RAISE_APPLICATION_ERROR(-20001, 'Cannot delete books with high price');
+END IF;
+END;
+DELETE FROM book WHERE b_id = 843835877;
+
+
+
+2)CREATE OR REPLACE TRIGGER BOOK_PRICE_TRIG
+BEFORE INSERT ON BOOK
+    FOR EACH ROW
+DECLARE
+    c NUMBER;
+BEGIN
+    SELECT COUNT(*) INTO c FROM BOOK;
+    DBMS_OUTPUT.PUT_LINE('Before insert book table has '   c  ' values.');
+END;
+/
+insert into book
+values (101, 'Madin', 'Book2',200, 'Thriller');
+
+
+3)CREATE TRIGGER insert_trgg 
+FOR INSERT 
+ON book
+COMPOUND TRIGGER 
+BEFORE EACH ROW IS 
+BEGIN
+:new.b_price:=5000;
+END BEFORE EACH ROW;
+END insert_trgg;
+
+4)CREATE OR REPLACE TRIGGER Check_total
+BEFORE
+INSERT OR UPDATE ON orders
+FOR EACH ROW
+BEGIN
+  IF :new.total_price > 10000 THEN
+    raise_application_error(-20001, 'Price should not be greater than 10000');
+  END IF;
+END;
+/
+insert into orders
+values(7823938037,7205338831,1547134050,6588);
+
+///////////
+declare 
+  ss_name varchar2(50);
+  sdr sender.s_name%type;
+  impermissible_ex exception;
+
+begin
+  ss_name:= :s_name;
+  if  length(ss_name) < 5 then  
+  raise impermissible_ex;
+else
+  select s_name into sdr from sender where s_name = ss_name;
+  dbms_output.put_line('Sender with this name exists.');
+end if; 
+
+exception
+  when impermissible_ex then
+   raise_application_error(-20001, 'The name of sender must contain at least 5 characters.');
+  when no_data_found then
+   dbms_output.put_line('Invalid name of sender.');
+  when others then
+   dbms_output.put_line('Try again');
+end;
+
+////procedure
+
+CREATE OR REPLACE PROCEDURE check_account_exists(
+    p_username IN Account.username%TYPE,
+    p_password IN Account.password%TYPE  
+)  AS  v_count NUMBER;
+  
+BEGIN
+    SELECT COUNT(*)
+    INTO v_count
+    FROM Account
+    WHERE username = p_username
+    AND password = p_password;
+    
+    IF v_count = 1 THEN
+        DBMS_OUTPUT.PUT_LINE('Account exists.');
+    ELSE
+        DBMS_OUTPUT.PUT_LINE('Account does not exist.');
+    END IF;
+END;
+
+
+-- declare
+
+BEGIN  check_account_exists('jfranzen0','eoldacre0');
+END;
+
+
+////procedure
+
+CREATE OR REPLACE PROCEDURE get_book_name(
+    p_b_id IN Book.b_id%TYPE
+) AS book_name Book.b_name%TYPE;
+BEGIN
+    SELECT b_name into book_name
+    FROM Book
+    WHERE b_id = p_b_id;
+    DBMS_OUTPUT.PUT_LINE('Book name: ' || book_name);
+
+EXCEPTION
+    WHEN no_data_found THEN
+        DBMS_OUTPUT.PUT_LINE('Such a book does not exist');
+END;
+
+
+-- declare
+
+BEGIN
+    get_book_name(4941700007); 
+END;
+
+///// procedure
+
+CREATE OR REPLACE PROCEDURE update_order_total_price(
+    p_order_id IN OUT Orders.order_id%TYPE,
+    p_total_price OUT Orders.total_price%TYPE
+) AS
+BEGIN
+    UPDATE Orders
+    SET total_price = total_price * 1.1
+    WHERE order_id = p_order_id
+    RETURNING total_price INTO p_total_price;
+END;
+
+
+-- declare
+
+DECLARE
+    v_order_id Orders.order_id%TYPE := 456;
+    v_total_price Orders.total_price%TYPE;
+BEGIN
+    update_order_total_price(v_order_id, v_total_price);
+    DBMS_OUTPUT.PUT_LINE('Order ID: '  v_order_id  ', new total price: ' || v_total_price);
+END;
+
+//// procedure w row count
+create or replace procedure affected_RowsCount( 
+    cond in varchar2 
+)   is 
+    counter number; 
+Begin 
+    Execute Immediate 'UPDATE BOOK  
+   SET B_PRICE = B_PRICE * 1.1 WHERE AUTHOR = '''||cond||''''; 
+   IF sql%notfound THEN  
+      dbms_output.put_line('no customers selected');  
+   ELSIF sql%found THEN  
+      counter := sql%rowcount; 
+      dbms_output.put_line( counter || ' customers selected ');  
+   END IF;   
+end; 
+ 
+ 
+BEGIN  
+  affected_RowsCount('Billye MacSharry'); 
+END;
+
+////function
+CREATE OR REPLACE FUNCTION counter_of_records 
+  (t_name IN VARCHAR2, 
+   t_cond IN VARCHAR2) 
+   RETURN NUMBER 
+IS 
+  count_num_var NUMBER; 
+BEGIN 
+  EXECUTE IMMEDIATE 'SELECT COUNT(*) FROM '  t_name  ' WHERE ' || t_cond INTO count_num_var; 
+  DBMS_OUTPUT.PUT_LINE('Number of records: ' || count_num_var); 
+  RETURN count_num_var; 
+END; 
+ 
+DECLARE 
+  count_num NUMBER; 
+BEGIN 
+  count_num := counter_of_records('BOOK', 'GENRE = ''Comedy'''); 
+END;
